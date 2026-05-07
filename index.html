@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connecting to LINE...</title>
+    <!-- LINE SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .loader-container { text-align: center; }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #06C755; /* LINE Green */
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="loader-container">
+        <div class="spinner"></div>
+        <p>กำลังพาท่านไปยัง LINE OA...</p>
+    </div>
+
+    <script>
+        // กำหนดค่าคอนฟิกของคุณพูล
+        const CONFIG = {
+            liffId: '2006875744-pWcAixnJ',
+            scriptUrl: 'https://script.google.com/macros/s/AKfycbxn7qPXyX8jii-2mwrErdTrx-Go0UDb9PHEUWlcjFaLrtqlNkbp7q7IdQ270RzDDRYp/exec',
+            lineOaUrl: 'https://lin.ee/joJYEeX'
+        };
+
+        async function main() {
+            try {
+                // 1. เริ่มการทำงาน LIFF
+                await liff.init({ liffId: CONFIG.liffId });
+
+                // 2. ตรวจสอบการ Login
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                // 3. ดึงข้อมูล Profile และ UTM
+                const profile = await liff.getProfile();
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                const payload = {
+                    userId: profile.userId,
+                    displayName: profile.displayName,
+                    utm_source: urlParams.get('utm_source') || 'organic',
+                    utm_campaign: urlParams.get('utm_campaign') || 'none',
+                    utm_medium: urlParams.get('utm_medium') || 'none',
+                    timestamp: new Date().toISOString()
+                };
+
+                // 4. ส่งข้อมูลไปที่ Google Sheets (แบบ Fire and Forget)
+                // ใช้ no-cors เพื่อป้องกันปัญหาเรื่องความปลอดภัยของเบราว์เซอร์
+                fetch(CONFIG.scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // 5. ดีดไปหน้า LINE OA (หน่วงเวลา 600ms เพื่อให้ fetch เริ่มทำงาน)
+                setTimeout(() => {
+                    window.location.href = CONFIG.lineOaUrl;
+                }, 600);
+
+            } catch (error) {
+                console.error('LIFF Error:', error);
+                // หากเกิดข้อผิดพลาด ให้ส่งไปที่ LINE OA ทันทีเพื่อไม่ให้เสียลูกค้า
+                window.location.href = CONFIG.lineOaUrl;
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>
